@@ -1,0 +1,33 @@
+{
+  "name": "myTv",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "dotenv": "^17.4.2",
+      "zod": "^4.4.3",
+      "@types/node": "^26.2.0"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --filter '*' dev",
+    "build": "bun run --filter '*' build",
+    "check-types": "bun run --filter '*' check-types",
+    "dev:native": "bun run --filter native dev"
+  },
+  "dependencies": {
+    "@myTv/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@myTv/config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "^6.0.3"
+  },
+  "packageManager": "bun@1.4.0"
+}

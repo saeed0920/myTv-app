@@ -1,0 +1,19 @@
+{
+  "name": "@myTv/env",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./native": "./src/native.ts"
+  },
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.11",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@myTv/config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "^6.0.3"
+  }
+}
