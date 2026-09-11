@@ -1,0 +1,43 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - run: bun install --frozen-lockfile
+
+      - run: bunx expo prebuild --platform android --no-install
+        working-directory: apps/native
+      - run: ./gradlew assembleRelease
+        working-directory: apps/native/android
+      - run: cp apps/native/android/app/build/outputs/apk/release/app-release.apk myTv.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: myTv-apk
+          path: myTv.apk
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" myTv.apk --clobber

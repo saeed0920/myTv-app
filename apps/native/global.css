@@ -1,3 +1,29 @@
 @import "tailwindcss";
 @import "uniwind";
 @import "heroui-native/styles";
+@source "../../node_modules/heroui-native/lib";
+
+@layer theme {
+  :root {
+    @variant light {
+      --color-deck-black: #f1f3eb;
+      --color-deck-panel: #ffffff;
+      --color-deck-control: #e2e6dc;
+      --color-deck-line: #aab2a5;
+      --color-deck-ink: #111510;
+      --color-deck-dim: #505b50;
+      --color-deck-acid: #668000;
+      --color-deck-danger: #c52c26;
+    }
+    @variant dark {
+      --color-deck-black: #080a08;
+      --color-deck-panel: #171b18;
+      --color-deck-control: #222822;
+      --color-deck-line: #3b443b;
+      --color-deck-ink: #f4f6ed;
+      --color-deck-dim: #a5ad9e;
+      --color-deck-acid: #d8ff3e;
+      --color-deck-danger: #ff6257;
+    }
+  }
+}
