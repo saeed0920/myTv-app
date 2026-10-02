@@ -27,12 +27,15 @@ jobs:
         working-directory: apps/native
       - run: ./gradlew assembleRelease
         working-directory: apps/native/android
-      - run: cp apps/native/android/app/build/outputs/apk/release/app-release.apk myTv.apk
+      - run: |
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp "apps/native/android/app/build/outputs/apk/release/app-${abi}-release.apk" "myTv-${abi}.apk"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: myTv-apk
-          path: myTv.apk
+          name: myTv-apks
+          path: myTv-*.apk
 
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/')
@@ -42,4 +45,4 @@ jobs:
           release_flags=()
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then release_flags+=(--prerelease); fi
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --generate-notes "${release_flags[@]}"
-          gh release upload "$GITHUB_REF_NAME" myTv.apk --clobber
+          gh release upload "$GITHUB_REF_NAME" myTv-*.apk --clobber

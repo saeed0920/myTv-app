@@ -62,7 +62,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-Published file appears as `myTv.apk` in tagged GitHub release.
+Tagged releases contain three APKs: `myTv-arm64-v8a.apk` for most modern phones, `myTv-armeabi-v7a.apk` for older 32-bit phones, and `myTv-x86_64.apk` for Intel Android devices/emulators. Select APK matching device CPU.
 
 ## Project structure
 
