@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, AppState, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, AppState, Image, Platform, Pressable, Switch, Text, TextInput, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 
 import { Container } from "@/components/container";
@@ -37,6 +37,11 @@ export default function Remote() {
   const [status, setStatus] = useState<PlaybackStatus>({ position: 0, duration: 0, title: "Nothing playing", paused: true, volume: 0, muted: false });
   const [url, setUrl] = useState("");
   const [quality, setQuality] = useState("720");
+  const [fps, setFps] = useState("30");
+  const [useProxy, setUseProxy] = useState(true);
+  const [preview, setPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewError, setPreviewError] = useState(false);
   const [qualities, setQualities] = useState<Quality[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -53,6 +58,14 @@ export default function Remote() {
     return () => clearInterval(timer);
   }, [refresh]));
 
+  useFocusEffect(useCallback(() => {
+    if (!preview || !baseUrl || state !== "connected") return;
+    const tick = () => { if (AppState.currentState === "active") setPreviewUrl(`${baseUrl}/api/preview?${Date.now()}`); };
+    tick();
+    const timer = setInterval(tick, 2000);
+    return () => clearInterval(timer);
+  }, [preview, baseUrl, state]));
+
   const command = useCallback(async (name: string, position?: number) => {
     if (!baseUrl) return;
     if (Platform.OS === "ios") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -66,7 +79,7 @@ export default function Remote() {
     if (!url.trim()) return setMessage("Paste a video URL first");
     setBusy(true); setMessage("");
     try {
-      const result = await post<{ message: string }>(baseUrl, "/api/play", { url: url.trim(), quality, fps: "auto" });
+      const result = await post<{ message: string }>(baseUrl, "/api/play", { url: url.trim(), quality, fps, proxy: useProxy });
       setMessage(result.message);
       void refresh();
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Playback failed"); }
@@ -79,7 +92,8 @@ export default function Remote() {
     try {
       const result = await post<{ qualities: Quality[] }>(baseUrl, "/api/formats", { url: url.trim() });
       setQualities(result.qualities);
-      if (result.qualities[0]) setQuality(String(Math.min(1080, result.qualities[0].height)));
+      const preferred = result.qualities.find(item => item.height <= 720) || result.qualities.find(item => item.height <= 1080);
+      if (preferred) setQuality(String(preferred.height));
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : "Quality lookup failed"); }
     finally { setBusy(false); }
   }
@@ -102,8 +116,13 @@ export default function Remote() {
   }
 
   const progress = status.duration ? Math.min(100, status.position / status.duration * 100) : 0;
-  const options = qualities.length ? qualities.filter(item => item.height <= 1080).map(item => ({ value: String(item.height), label: `${item.height}p${item.fps > 30 ? Math.round(item.fps) : ""}` })) : [
-    { value: "360", label: "360p" }, { value: "720", label: "720p" }, { value: "1080@30", label: "1080p30" }, { value: "audio", label: "Audio" },
+  const options = [
+    { value: "default", label: "Source / default" },
+    ...(qualities.length ? qualities.filter(item => item.height <= 1080).flatMap(item => [
+      { value: String(item.height), label: `${item.height}p${item.fps > 30 ? Math.round(item.fps) : ""}` },
+      ...(item.fps > 30 && item.low ? [{ value: `${item.height}@30`, label: `${item.height}p30` }] : []),
+    ]) : [{ value: "360", label: "360p" }, { value: "480", label: "480p" }, { value: "720", label: "720p" }, { value: "1080@30", label: "1080p30" }, { value: "1080", label: "1080p60" }]),
+    { value: "audio", label: "Audio" },
   ];
 
   return (
@@ -144,7 +163,7 @@ export default function Remote() {
         <TextInput
           accessibilityLabel="Video URL"
           value={url}
-          onChangeText={setUrl}
+          onChangeText={value => { setUrl(value); setQualities([]); try { const host = new URL(value).hostname; if (!(host === "youtu.be" || host === "youtube.com" || host.endsWith(".youtube.com"))) setQuality("default"); } catch {} }}
           placeholder="YouTube, Spotify, or media URL"
           autoCapitalize="none"
           autoCorrect={false}
@@ -156,11 +175,22 @@ export default function Remote() {
         <View className="my-3 flex-row flex-wrap gap-2">
           {options.map(item => <Pressable key={item.value} onPress={() => setQuality(item.value)} className={`min-h-12 justify-center rounded-lg border px-4 active:opacity-60 ${quality === item.value ? "border-deck-acid bg-deck-acid" : "border-deck-line bg-deck-control"}`}><Text className={`font-bold ${quality === item.value ? "text-deck-black" : "text-deck-ink"}`}>{item.label}</Text></Pressable>)}
         </View>
+        <View className="mb-3 flex-row flex-wrap items-center gap-3">
+          <Text className="font-bold text-deck-ink">Playback proxy</Text><Switch accessibilityLabel="Use playback proxy" value={useProxy} onValueChange={setUseProxy} />
+          <Pressable accessibilityRole="button" onPress={() => setFps(fps === "30" ? "auto" : "30")} className="min-h-12 justify-center rounded-lg border border-deck-line bg-deck-control px-4"><Text className="font-bold text-deck-ink">{fps === "30" ? "Smooth 30 FPS" : "FPS auto"}</Text></Pressable>
+        </View>
+        <Text className="mb-3 text-sm text-deck-dim">720p60 / 1080p30 recommended. 1080p60 may drop frames.</Text>
         <View className="flex-row gap-2">
           <Pressable disabled={busy} onPress={() => void findQualities()} className="min-h-12 flex-1 items-center justify-center rounded-xl border border-deck-line bg-deck-control active:opacity-60 disabled:opacity-40"><Text className="font-bold text-deck-ink">Available</Text></Pressable>
           <Pressable disabled={busy} onPress={() => void play()} className="min-h-12 flex-[2] items-center justify-center rounded-xl bg-deck-acid active:opacity-60 disabled:opacity-40"><Text className="font-black uppercase text-deck-black">{busy ? "Working…" : "Play on TV"}</Text></Pressable>
         </View>
         {!!message && <Text accessibilityLiveRegion="polite" className="mt-3 rounded-lg border-l-4 border-deck-acid bg-deck-black p-3 text-sm text-deck-ink">{message}</Text>}
+      </View>
+      <View className="mt-4 rounded-2xl border border-deck-line bg-deck-panel p-4">
+        <View className="flex-row items-center justify-between gap-3"><Text className="font-bold text-deck-ink">TV frame preview</Text><Switch accessibilityLabel="TV frame preview" value={preview} onValueChange={value => { setPreview(value); setPreviewError(false); }} /></View>
+        <Text className="mt-2 text-sm text-deck-dim">Still frame every 2 seconds, not live video.</Text>
+        {preview && !!previewUrl && <Image accessibilityLabel="Current TV frame" source={{ uri: previewUrl }} resizeMode="contain" style={{ width: "100%", aspectRatio: 16 / 9, marginTop: 12, backgroundColor: "#000" }} onError={() => setPreviewError(true)} onLoad={() => setPreviewError(false)} />}
+        {preview && previewError && <Text accessibilityLiveRegion="polite" className="mt-2 text-deck-dim">No frame available. Start TV playback first.</Text>}
       </View>
     </Container>
   );
